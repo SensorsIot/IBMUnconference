@@ -25,19 +25,14 @@
 */
 
 #define APPNAME "WemosClock"
-#define VERSION "V1.0.0"
+#define VERSION "V2.0.0"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
 
 
-#define PIN_RESET 20  //
-#define DC_JUMPER 0  // I2C Addres: 0 - 0x3C, 1 - 0x3D
-
 #include <IOTAppStory.h>
-
 #include <SNTPtime.h>
-#include <Wire.h>  // Include Wire if you're using I2C
-#include <SFE_MicroOLED.h>  // Include the SFE_MicroOLED library
+#include "SSD1306.h"
 #include <credentials.h>
 
 #ifndef CREDENTIALS
@@ -45,59 +40,49 @@
 #define myPASSWORD "*****"
 #endif
 
-MicroOLED oled(PIN_RESET, DC_JUMPER);  // I2C Example
 SNTPtime NTPch("ch.pool.ntp.org");
 IOTAppStory IAS(APPNAME, VERSION, COMPDATE, MODEBUTTON);
-
+SSD1306  display(0x3c, D2, D1);
 
 strDateTime dateTime;
 
-
-// Global variables to help draw the clock face:
-const int MIDDLE_Y = oled.getLCDHeight() / 2;
-const int MIDDLE_X = oled.getLCDWidth() / 2;
-
-int CLOCK_RADIUS;
-int POS_12_X, POS_12_Y;
-int POS_3_X, POS_3_Y;
-int POS_6_X, POS_6_Y;
-int POS_9_X, POS_9_Y;
-int S_LENGTH;
-int M_LENGTH;
-int H_LENGTH;
-
-
 unsigned long lastDraw = 0;
+
+int screenW = 64;
+int screenH = 48;
+int clockCenterX = screenW / 2;
+int clockCenterY = ((screenH - 16) / 2) + 16; // top yellow part is 16 px height
+int clockRadius = 23;
+int x = 30, y = 10;
 
 char* timeZone = "1.0";
 int lastSecond;
 unsigned long iotEntry = millis();
 
 void displayConfig() {
-  oled.clear(PAGE);     // Clear the screen
-  oled.setFontType(0);  // Set font to type 0
-  oled.setCursor(0, 0); // Set cursor to top-left
-  oled.print("Config");
-  oled.setCursor(0, 0);
-  oled.print("Mode");
-  oled.display();
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, "Config");
+  display.setFont(ArialMT_Plain_16);
+  display.drawString(32, 40, "Mode");
+  display.display();
 }
 
 void displayUpdatate() {
-  oled.clear(PAGE);     // Clear the screen
-  oled.setFontType(0);  // Set font to type 0
-  oled.setCursor(0, 0); // Set cursor to top-left
-  oled.print("Update");
-  oled.setCursor(30, 0);
-  oled.print("Sketch");
-  oled.display();
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, "Update");
+  display.setFont(ArialMT_Plain_16);
+  display.drawString(32, 40, "Sketch");
+  display.display();
 }
-
 
 // ================================================ SETUP ================================================
 void setup() {
   IAS.serialdebug(true);                  // 1st parameter: true or false for serial debugging. Default: false
-  
+
   IAS.preSetBoardname(APPNAME);
   IAS.preSetAutoUpdate(false);
   IAS.preSetAutoConfig(false);
@@ -116,110 +101,68 @@ void setup() {
 
   //-------- Your Setup starts from here ---------------
 
-  oled.begin();     // Initialize the OLED
-  oled.clear(PAGE); // Clear the display's internal memory
-  oled.clear(ALL);  // Clear the library's display buffer
-  oled.display();   // Display what's in the buffer (splashscreen)
+  display.init();
+  display.flipScreenVertically();
+  display.setFont(ArialMT_Plain_10);
 
   while (!NTPch.setSNTPtime()) Serial.print("."); // set internal clock
   Serial.println();
   Serial.println("Time set");
-
-  initClockVariables();
 }
 
 
 // ================================================ LOOP =================================================
 void loop() {
   IAS.buttonLoop();
-  Serial.println(digitalRead(MODEBUTTON));
   dateTime = NTPch.getTime(1.0, 1); // get time from internal clock
   if (dateTime.second != lastSecond) {
     NTPch.printDateTime(dateTime);
-    oled.clear(PAGE);  // Clear the buffer
     drawFace();
     drawArms(dateTime.hour, dateTime.minute, dateTime.second);
-    oled.display();
+    display.display();
     lastSecond = dateTime.second;
   }
 }
 
-
-void initClockVariables() {
-  // Calculate constants for clock face component positions:
-  oled.setFontType(0);
-  if (MIDDLE_X > MIDDLE_Y) CLOCK_RADIUS = MIDDLE_Y;
-  else CLOCK_RADIUS = MIDDLE_X;
-  CLOCK_RADIUS = CLOCK_RADIUS - 1;
-  POS_12_X = MIDDLE_X - oled.getFontWidth();
-  POS_12_Y = MIDDLE_Y - CLOCK_RADIUS + 2;
-  POS_3_X  = MIDDLE_X + CLOCK_RADIUS - oled.getFontWidth() - 1;
-  POS_3_Y  = MIDDLE_Y - oled.getFontHeight() / 2;
-  POS_6_X  = MIDDLE_X - oled.getFontWidth() / 2;
-  POS_6_Y  = MIDDLE_Y + CLOCK_RADIUS - oled.getFontHeight() - 1;
-  POS_9_X  = MIDDLE_X - CLOCK_RADIUS + oled.getFontWidth() - 2;
-  POS_9_Y  = MIDDLE_Y - oled.getFontHeight() / 2;
-
-  // Calculate clock arm lengths
-  S_LENGTH = CLOCK_RADIUS - 2;
-  M_LENGTH = S_LENGTH * 0.7;
-  H_LENGTH = S_LENGTH * 0.5;
+// Draw an analog clock face
+void drawFace() {
+  display.clear();
+  display.drawCircle(clockCenterX + x, clockCenterY + y, 2);
+  //
+  //hour ticks
+  for ( int z = 0; z < 360; z = z + 30 ) {
+    //Begin at 0° and stop at 360°
+    float angle = z ;
+    angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
+    int x2 = ( clockCenterX + ( sin(angle) * clockRadius ) );
+    int y2 = ( clockCenterY - ( cos(angle) * clockRadius ) );
+    int x3 = ( clockCenterX + ( sin(angle) * ( clockRadius - ( clockRadius / 8 ) ) ) );
+    int y3 = ( clockCenterY - ( cos(angle) * ( clockRadius - ( clockRadius / 8 ) ) ) );
+    display.drawLine( x2 + x , y2 + y , x3 + x , y3 + y);
+  }
 }
 
 // Draw the clock's three arms: seconds, minutes, hours.
 void drawArms(int h, int m, int s)
 {
-  double midHours;  // this will be used to slightly adjust the hour hand
-  static int hx, hy, mx, my, sx, sy;
-
-  // Adjust time to shift display 90 degrees ccw
-  // this will turn the clock the same direction as text:
-  h -= 3;
-  m -= 15;
-  s -= 15;
-  if (h <= 0)
-    h += 12;
-  if (m < 0)
-    m += 60;
-  if (s < 0)
-    s += 60;
-
-  // Calculate and draw new lines:
-  s = map(s, 0, 60, 0, 360);  // map the 0-60, to "360 degrees"
-  sx = S_LENGTH * cos(PI * ((float)s) / 180);  // woo trig!
-  sy = S_LENGTH * sin(PI * ((float)s) / 180);  // woo trig!
-  // draw the second hand:
-  oled.line(MIDDLE_X, MIDDLE_Y, MIDDLE_X + sx, MIDDLE_Y + sy);
-
-  m = map(m, 0, 60, 0, 360);  // map the 0-60, to "360 degrees"
-  mx = M_LENGTH * cos(PI * ((float)m) / 180);  // woo trig!
-  my = M_LENGTH * sin(PI * ((float)m) / 180);  // woo trig!
-  // draw the minute hand
-  oled.line(MIDDLE_X, MIDDLE_Y, MIDDLE_X + mx, MIDDLE_Y + my);
-
-  midHours = dateTime.minute / 12; // midHours is used to set the hours hand to middling levels between whole hours
-  h *= 5;  // Get hours and midhours to the same scale
-  h += midHours;  // add hours and midhours
-  h = map(h, 0, 60, 0, 360);  // map the 0-60, to "360 degrees"
-  hx = H_LENGTH * cos(PI * ((float)h) / 180);  // woo trig!
-  hy = H_LENGTH * sin(PI * ((float)h) / 180);  // woo trig!
-  // draw the hour hand:
-  oled.line(MIDDLE_X, MIDDLE_Y, MIDDLE_X + hx, MIDDLE_Y + hy);
-}
-
-// Draw an analog clock face
-void drawFace() {
-  // Draw the clock border
-  oled.circle(MIDDLE_X, MIDDLE_Y, CLOCK_RADIUS);
-
-  // Draw the clock numbers
-  oled.setFontType(0); // set font type 0, please see declaration in SFE_MicroOLED.cpp
-  oled.setCursor(POS_12_X, POS_12_Y); // points cursor to x=27 y=0
-  oled.print(12);
-  oled.setCursor(POS_6_X, POS_6_Y);
-  oled.print(6);
-  oled.setCursor(POS_9_X, POS_9_Y);
-  oled.print(9);
-  oled.setCursor(POS_3_X, POS_3_Y);
-  oled.print(3);
+  // display second hand
+  float angle = s * 6 ;
+  angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
+  int x3 = ( clockCenterX + ( sin(angle) * ( clockRadius - ( clockRadius / 5 ) ) ) );
+  int y3 = ( clockCenterY - ( cos(angle) * ( clockRadius - ( clockRadius / 5 ) ) ) );
+  display.drawLine( clockCenterX + x , clockCenterY + y , x3 + x , y3 + y);
+  //
+  // display minute hand
+  angle = m * 6 ;
+  angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
+  x3 = ( clockCenterX + ( sin(angle) * ( clockRadius - ( clockRadius / 4 ) ) ) );
+  y3 = ( clockCenterY - ( cos(angle) * ( clockRadius - ( clockRadius / 4 ) ) ) );
+  display.drawLine( clockCenterX + x , clockCenterY + y , x3 + x , y3 + y);
+  //
+  // display hour hand
+  angle = h * 30 + int( ( m / 12 ) * 6 )   ;
+  angle = ( angle / 57.29577951 ) ; //Convert degrees to radians
+  x3 = ( clockCenterX + ( sin(angle) * ( clockRadius - ( clockRadius / 2 ) ) ) );
+  y3 = ( clockCenterY - ( cos(angle) * ( clockRadius - ( clockRadius / 2 ) ) ) );
+  display.drawLine( clockCenterX + x , clockCenterY + y , x3 + x , y3 + y);
 }
