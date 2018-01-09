@@ -8,7 +8,7 @@
 */
 
 #define APPNAME "TempSensor"
-#define VERSION "V1.1.0"
+#define VERSION "V1.2.0"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
 
@@ -37,75 +37,101 @@ SSD1306  display(0x3c, D2, D1);
 int tempEntry;
 unsigned long iotEntry = millis();
 
+void displayStartup() {
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, F("Press"));
+  display.drawString(32, 30, F("Reset"));
+  display.drawString(32, 45, F("Button"));
+  display.display();
+}
+
 void displayTemp(float temp) {
   display.clear();
   display.setFont(ArialMT_Plain_24);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.drawString(32, 15, String(temp));
   display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Celsius");
+  display.drawString(32, 40, F("Celsius"));
   display.display();
 }
 
-void displayConfig() {
+void displayUpdate() {
   display.clear();
   display.setFont(ArialMT_Plain_16);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 15, "Config");
-  display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Mode");
+  display.drawString(32, 13, F("Update"));
+  display.drawString(52, 31, F("of"));
+  display.drawString(32, 49, F("Sketch"));
   display.display();
 }
 
-void displayUpdatate() {
+void displayConfigMode() {
   display.clear();
-  display.setFont(ArialMT_Plain_16);
+  display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 15, "Update");
+  display.drawString(32, 15, F("Connect to"));
   display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Sketch");
+  display.drawString(40, 30, F("Wi-Fi"));
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(32, 50, "x:x:" + WiFi.macAddress().substring(9, 99));
   display.display();
 }
 
 void printLog() {
-  Serial.print("Humidity: ");
+  Serial.print(F("Humidity: "));
   Serial.print(h);
   Serial.print(" %\t");
-  Serial.print("Temperature: ");
+  Serial.print(F("Temperature: "));
   Serial.print(t);
-  Serial.print(" *C ");
+  Serial.print(F(" *C "));
   Serial.print(f);
-  Serial.print(" *F\t");
-  Serial.print("Heat index: ");
+  Serial.print(F(" *F\t"));
+  Serial.print(F("Heat index: "));
   Serial.print(hic);
-  Serial.print(" *C ");
+  Serial.print(F(" *C "));
   Serial.print(hif);
-  Serial.println(" *F");
+  Serial.println(F(" *F"));
   tempEntry = millis();
 }
 
 void setup() {
   IAS.serialdebug(true);                  // 1st parameter: true or false for serial debugging. Default: false
+  display.init();
+  display.flipScreenVertically();
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(48, 35, F("Wait"));
+  display.display();
+
   String boardName = APPNAME"_" + WiFi.macAddress();
   IAS.preSetBoardname(boardName);
   IAS.preSetAutoUpdate(false);                     // automaticUpdate (true, false)
   IAS.preSetAutoConfig(false);                      // automaticConfig (true, false)
   IAS.preSetWifi(mySSID, myPASSWORD);            // preset Wifi
 
-  IAS.begin(true,'P');
-
-  IAS.onModeButtonConfigMode([]() {
-    displayConfig();
+  /*
+    IAS.onFirstBoot([]() {
+      Serial.println(F(" Hardware reset necessary after Serial upload. Reset to continu!"));
+      Serial.println(F("*-------------------------------------------------------------------------*"));
+      displayStartup();
+      while (1) yield();
+    });
+  */
+  IAS.onConfigMode([]() {
+    displayConfigMode();
   });
 
-  IAS.onModeButtonFirmwareUpdate([]() {
-    displayUpdatate();
+  IAS.onFirmwareUpdate([]() {
+    displayUpdate();
   });
+
+  IAS.begin(true, 'P');
 
   //-------- Your Setup starts from here ---------------
 
-  display.init();
-  display.flipScreenVertically();
   dht.begin();
   // Before you can start using the OLED, call begin() to init
   // all of the pins and configure the OLED.
@@ -128,14 +154,17 @@ void loop() {
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
     do {
       h = dht.readHumidity();
+      yield();
     } while (isnan(h));
     // Read temperature as Celsius (the default)
     do {
       t = dht.readTemperature();
+      yield();
     } while (isnan(t));
     // Read temperature as Fahrenheit (isFahrenheit = true)
     do {
       f = dht.readTemperature(true);
+      yield();
     } while (isnan(f));
 
     // Check if any reads failed and exit early (to try again).

@@ -8,7 +8,7 @@
 */
 
 #define APPNAME "WemosLight"
-#define VERSION "V1.0.0"
+#define VERSION "V2.1.1"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
 
@@ -30,7 +30,7 @@ const char *mqtt_pass = "8ye0CMEWL85c";
 const char *mqtt_client_name = "IBMunconference"; // Client connections cant have the same connection name
 
 #define SERVICETOPIC "light/service"
-#define COMMANDTOPIC "light/command"
+#define COMMANDTOPIC "light/command/relay/0/set"
 String payload;
 bool buttonState = false, lastButtonState;
 bool bulb = false;
@@ -54,26 +54,6 @@ void displayMAC(String MACaddress) {
   display.display();
 }
 
-void displayConfig() {
-  display.clear();
-  display.setFont(ArialMT_Plain_16);
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 15, "Config");
-  display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Mode");
-  display.display();
-}
-
-void displayUpdatate() {
-  display.clear();
-  display.setFont(ArialMT_Plain_16);
-  display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 15, "Update");
-  display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Sketch");
-  display.display();
-}
-
 void displayPublished(String message) {
   display.clear();
   display.setFont(ArialMT_Plain_16);
@@ -84,18 +64,56 @@ void displayPublished(String message) {
   display.display();
 }
 
+void displayStartup() {
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, F("Press"));
+  display.drawString(32, 30, F("Reset"));
+  display.drawString(32, 45, F("Button"));
+  display.display();
+}
+
+void displayUpdate() {
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 13, F("Update"));
+  display.drawString(52, 31, F("of"));
+  display.drawString(32, 49, F("Sketch"));
+  display.display();
+}
+
+void displayConfigMode() {
+  display.clear();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, F("Connect to"));
+  display.setFont(ArialMT_Plain_16);
+  display.drawString(40, 30, F("Wi-Fi"));
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(32, 50, "x:x:" + WiFi.macAddress().substring(9, 99));
+  display.display();
+}
+
 void callback(char* topic, byte* payload, unsigned int length) {
   String MACaddress = "";
   for (int i = 0; i < length; i++) {
     MACaddress += (char)payload[i];
   }
-  displayMAC(MACaddress);
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print(" ");
-  Serial.print(MACaddress);
-  Serial.println("] ");
+  Serial.println(MACaddress);
+  Serial.println(WiFi.macAddress());
+  Serial.println(MACaddress == WiFi.macAddress());
+  Serial.println(MACaddress.equals(WiFi.macAddress()));
 
+  if (MACaddress != WiFi.macAddress()) {  // do not display own MAC Address
+    displayMAC(MACaddress);
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print(" ");
+    Serial.print(MACaddress);
+    Serial.println("] ");
+  }
   // Switch on the LED if an 1 was received as first character
   if ((char)payload[0] == '1') {
     digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
@@ -139,26 +157,39 @@ void publishToMQTTbroker(String topic, String payload) {
 }
 
 void setup() {
-  IAS.serialdebug(true);
+  IAS.serialdebug(true);                  // 1st parameter: true or false for serial debugging. Default: false
+  display.init();
+  display.flipScreenVertically();
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(48, 35, F("Wait"));
+  display.display();
 
-  IAS.preSetBoardname(APPNAME);
+  String boardName = APPNAME"_" + WiFi.macAddress();
+  IAS.preSetBoardname(boardName);
   IAS.preSetAutoUpdate(false);
   IAS.preSetAutoConfig(false);
   IAS.preSetWifi(mySSID, myPASSWORD);
 
+  /*
+     IAS.onFirstBoot([]() {
+       Serial.println(F(" Hardware reset necessary after Serial upload. Reset to continu!"));
+       Serial.println(F("*-------------------------------------------------------------------------*"));
+       displayStartup();
+       while (1) yield();
+     });
+  */
+
+  IAS.onConfigMode([]() {
+    displayConfigMode();
+  });
+
+  IAS.onFirmwareUpdate([]() {
+    displayUpdate();
+  });
+
   IAS.begin(true, 'P');
-
-  IAS.onModeButtonConfigMode([]() {
-    displayConfig();
-  });
-
-  IAS.onModeButtonFirmwareUpdate([]() {
-    displayUpdatate();
-  });
-
-  //-------- Your Setup starts from here ---------------
-  display.init();
-  display.flipScreenVertically();
 
   MQTTbroker.setServer(mqtt_server, mqtt_port);
   MQTTbroker.setCallback(callback);
@@ -181,7 +212,10 @@ void loop() {
     bulb = !bulb;
 
     if (bulb) payload = "OFF";
-    else payload = "ON";
+    else {
+      MQTTbroker.publish( SERVICETOPIC, WiFi.macAddress().c_str());
+      payload = "ON";
+    }
     publishToMQTTbroker(COMMANDTOPIC, payload.c_str());
     displayPublished(payload);
   }

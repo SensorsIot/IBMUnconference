@@ -24,15 +24,15 @@
 
 */
 
-#define APPNAME "WemosClock"
-#define VERSION "V2.0.0"
+#define APPNAME "WemosClockIBM"
+#define VERSION "V2.1.0"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
 
 
 #include <IOTAppStory.h>
 #include <SNTPtime.h>
-#include "SSD1306.h"
+#include <SSD1306.h>
 #include <credentials.h>
 
 #ifndef CREDENTIALS
@@ -46,8 +46,6 @@ SSD1306  display(0x3c, D2, D1);
 
 strDateTime dateTime;
 
-unsigned long lastDraw = 0;
-
 int screenW = 64;
 int screenH = 48;
 int clockCenterX = screenW / 2;
@@ -59,45 +57,73 @@ char* timeZone = "1.0";
 int lastSecond;
 unsigned long iotEntry = millis();
 
-void displayConfig() {
+void displayStartup() {
   display.clear();
   display.setFont(ArialMT_Plain_16);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 15, "Config");
-  display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Mode");
+  display.drawString(32, 15, F("Press"));
+  display.drawString(32, 30, F("Reset"));
+  display.drawString(32, 45, F("Button"));
   display.display();
 }
 
-void displayUpdatate() {
+void displayUpdate() {
   display.clear();
   display.setFont(ArialMT_Plain_16);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 15, "Update");
+  display.drawString(32, 13, F("Update"));
+  display.drawString(52, 31, F("of"));
+  display.drawString(32, 49, F("Sketch"));
+  display.display();
+}
+
+void displayConfigMode() {
+  display.clear();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, F("Connect to"));
   display.setFont(ArialMT_Plain_16);
-  display.drawString(32, 40, "Sketch");
+  display.drawString(40, 30, F("Wi-Fi"));
+  display.setFont(ArialMT_Plain_10);
+  display.drawString(32, 50, "x:x:" + WiFi.macAddress().substring(9, 99));
   display.display();
 }
 
 // ================================================ SETUP ================================================
 void setup() {
   IAS.serialdebug(true);                  // 1st parameter: true or false for serial debugging. Default: false
+  display.init();
+  display.flipScreenVertically();
+  display.clear();
+  display.setFont(ArialMT_Plain_16);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(48, 35, F("Wait"));
+  display.display();
 
-  IAS.preSetBoardname(APPNAME);
+  String boardName = APPNAME"_" + WiFi.macAddress();
+  IAS.preSetBoardname(boardName);
   IAS.preSetAutoUpdate(false);
   IAS.preSetAutoConfig(false);
   IAS.preSetWifi(mySSID, myPASSWORD);
 
+  /*
+    IAS.onFirstBoot([]() {
+      Serial.println(F(" Hardware reset necessary after Serial upload. Reset to continu!"));
+      Serial.println(F("*-------------------------------------------------------------------------*"));
+      displayStartup();
+      while (1) yield();
+    });
+  */
+
+  IAS.onConfigMode([]() {
+    displayConfigMode();
+  });
+
+  IAS.onFirmwareUpdate([]() {
+    displayUpdate();
+  });
+
   IAS.begin(true, 'P');
-
-
-  IAS.onModeButtonConfigMode([]() {
-    displayConfig();
-  });
-
-  IAS.onModeButtonFirmwareUpdate([]() {
-    displayUpdatate();
-  });
 
   //-------- Your Setup starts from here ---------------
 
