@@ -1,11 +1,14 @@
 /**
  *
- * @file ESP8266HTTPUpdate.h
- * @date 21.06.2015
- * @author Markus Sattler
+ * @file ESP8266HTTPUpdateIasMod.cpp
+ * @date 01.01.2018
+ * @author Onno Dirkzwager
+ *
+ * This is a heavily modified version of the original ESP8266HTTPUpdate.cpp written by Markus Sattler
+ * It is specifically modified for IotAppStory.com But feel free to use it in any way you would like to.
  *
  * Copyright (c) 2015 Markus Sattler. All rights reserved.
- * This file is part of the ESP8266 Http Updater.
+ * This file was originally part of the ESP8266 Http Updater.
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -32,12 +35,14 @@
 	#include <WiFiUdp.h>
 	#include <ESP8266HTTPClient.h>
 
-	#define DEBUG_LVL 2	// 1, 2 or 3
-	#if DEBUG_LVL >= 1
-		#define         DEBUG_PRINT(x)    { Serial.print(x);  }
-		#define         DEBUG_PRINTF(...) { Serial.printf(__VA_ARGS__);  }
-		#define         DEBUG_PRINTF_P(...) { Serial.printf_P(__VA_ARGS__);  }
-		#define         DEBUG_PRINTLN(x)  { Serial.println(x); }
+    #ifndef DEBUG_LVL
+		#define DEBUG_LVL 2	// 1, 2 or 3
+		#if DEBUG_LVL >= 1
+			#define         DEBUG_PRINT(x)    { Serial.print(x);  }
+			#define         DEBUG_PRINTF(...) { Serial.printf(__VA_ARGS__);  }
+			#define         DEBUG_PRINTF_P(...) { Serial.printf_P(__VA_ARGS__);  }
+			#define         DEBUG_PRINTLN(x)  { Serial.println(x); }
+		#endif
 	#endif
 
 	class ESP8266HTTPUpdate{

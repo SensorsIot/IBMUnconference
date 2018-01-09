@@ -3,10 +3,11 @@
 
     #include <Arduino.h>
     #include <functional>
-	
+
+
+
     /* ------ ------ ------ DEFINES for library ------ ------ ------ */
-    #define MAGICBYTES "CFG"
-    
+
     // allow for larger firmware when using an ESP8266
     #ifdef ESP8266
         #define EEPROM_SIZE 4096
@@ -21,19 +22,28 @@
         #define MAXNUMEXTRAFIELDS 12
     #endif
     
-    #define IASCNF 1					// IAS Config pages
-		#define WIFI_MANAGER_MAX_PARAMS 12
-    #define MAGICEEP "%"
-    #define UDP_PORT 514
-    #define RTCMEMBEGIN 68
-    #define MAGICBYTE 85
-    #define STRUCT_CHAR_ARRAY_SIZE 50  	// length of config variables
-    #define STRUCT_COMPDATE_SIZE 20
-		#define STRUCT_BNAME_SIZE 30
-    #define STRUCT_HOST_SIZE 24
-    #define STRUCT_FILE_SIZE 31
-	
+    // Wifi & Wifi Manager defines
+    #define USEMDNS true				// include MDNS responder
+    #define WIFIMAN true				// include wifi manager
+    #define IASCNF true					// include IAS Config pages
+    #define WIFI_MANAGER_MAX_PARAMS 12	// wifimanger | max num of fields that can be added
 
+		#define HTTPS 				true
+    #define HEAPFORHTTPS 	31500
+
+    #define MAGICBYTES 		"CFG"	
+    #define MAGICEEP 			"%"
+    #define UDP_PORT 			514
+    #define RTCMEMBEGIN 	68
+    #define MAGICBYTE 		85
+	
+    // length of config variables
+    #define STRUCT_CHAR_ARRAY_SIZE	50  	
+    #define STRUCT_COMPDATE_SIZE		20
+		#define STRUCT_BNAME_SIZE				30
+    #define STRUCT_HOST_SIZE				24
+    #define STRUCT_FILE_SIZE				31
+	
     // constants used to define the status of the mode button based on the time it was pressed. (miliseconds)
     #define MODE_BUTTON_SHORT_PRESS       500
     #define MODE_BUTTON_LONG_PRESS        4000
@@ -44,29 +54,35 @@
         #define MAX_WIFI_RETRIES 15
     #endif // !MAX_WIFI_RETRIES
 
-    // macros for debugging
-    #ifdef DEBUG_PORT
-        #define DEBUG_MSG(...) DEBUG_PORT.printf( __VA_ARGS__ )
-    #else
-        #define DEBUG_MSG(...)
-    #endif
+
+
+    /* ------ ------ ------ macros for debugging ------ ------ ------ */
 	
+	// 0, 1, 2 or 3 | none - max
+	#define DEBUG_LVL 2
 	
-    // set to true to include code for show EEPROM contents in debug
-    #ifndef DEBUG_EEPROM_CONFIG
-        #define DEBUG_EEPROM_CONFIG false
-    #endif
+	#if DEBUG_LVL >= 1
+		
+		// set to true to include code for show EEPROM contents in debug
+		#ifndef DEBUG_EEPROM_CONFIG
+			#define DEBUG_EEPROM_CONFIG false
+		#endif
 
+		// macros for debugging
+		#ifdef DEBUG_PORT
+			#define DEBUG_MSG(...) DEBUG_PORT.printf( __VA_ARGS__ )
+		#else
+			#define DEBUG_MSG(...)
+		#endif
 
-
-    #define         DEBUG_PRINT(x)    { if(_serialDebug) Serial.print(x);   }
-    #define         DEBUG_PRINTF(...) { if(_serialDebug) Serial.printf(__VA_ARGS__);  }
-    #define         DEBUG_PRINTF_P(...) { if(_serialDebug) Serial.printf_P(__VA_ARGS__);  }
-    #define         DEBUG_PRINTLN(x)  { if(_serialDebug) Serial.println(x); }
+		#define         DEBUG_PRINT(x)    { if(_serialDebug) Serial.print(x);   }
+		#define         DEBUG_PRINTF(...) { if(_serialDebug) Serial.printf(__VA_ARGS__);  }
+		#define         DEBUG_PRINTF_P(...) { if(_serialDebug) Serial.printf_P(__VA_ARGS__);  }
+		#define         DEBUG_PRINTLN(x)  { if(_serialDebug) Serial.println(x); }
+	#endif
 	
 
-	 
-	 
+	
 	 /* ------ ------ ------ STRUCTURES ------ ------ ------ */
 	typedef struct {
 		byte markerFlag;
@@ -102,7 +118,7 @@
 		bool automaticConfig;
 		char compDate[STRUCT_COMPDATE_SIZE];
 		char sha1[60];
-		char devPass[7];
+		char actCode[7];
 		
 		char magicBytes[4];
 	} strConfig;
@@ -117,6 +133,7 @@
     };
 
 	
+
 	/* ------ ------ ------ PROGMEM ------ ------ ------ */
 	
 	// store "repeating" serial feedback strings in PROGMEM as this uses less than F()
@@ -221,6 +238,9 @@
             bool isModeButtonPressed();
             ModeButtonState getModeButtonState();
     
+            // called at the end of firstBoot
+            void onFirstBoot(THandlerFunction fn);
+    
             // called when state is changed to idle (mode button is not pressed)
             void onModeButtonNoPress(THandlerFunction fn);
     
@@ -234,10 +254,10 @@
             void onModeButtonVeryLongPress(THandlerFunction fn);
     
             // called when the app is about to update the firmware
-            void onModeButtonFirmwareUpdate(THandlerFunction fn);
+            void onFirmwareUpdate(THandlerFunction fn);
     
             // called when the app is about to enter in configuration mode
-            void onModeButtonConfigMode(THandlerFunction fn);
+            void onConfigMode(THandlerFunction fn);
     
             
             void setCallHome(bool callHome);
@@ -252,11 +272,13 @@
             int     _nrXF = 0;				// nr of extra fields required in the config manager
             bool    _serialDebug;
             bool    _setPreSet = false;		// ;)
+            bool    _setBoardName = false;
 
             unsigned long   _buttonEntry;
             unsigned long   _debugEntry;
             AppState        _appState;
     
+            THandlerFunction _firstBootCallback;
             THandlerFunction _noPressCallback;
             THandlerFunction _shortPressCallback;
             THandlerFunction _longPressCallback;

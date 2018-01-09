@@ -155,7 +155,7 @@ void WiFiManager::setupConfigPortal() {
   //server->on(F("/state"), std::bind(&WiFiManager::handleState, this));
   server->on(F("/scan"), std::bind(&WiFiManager::handleScan, this));
   
-  #if IASCNF == 1
+  #if IASCNF == true
 	  server->on(F("/ias"), std::bind(&WiFiManager::handleIAScfg, this));
   #endif
   
@@ -505,11 +505,18 @@ void WiFiManager::handleIAScfg() {
 void WiFiManager::hdlIasCfgPages(const String args){
 
 	String url = "";
-	//DEBUG_WM(F("Start hdlIasCfgPages()"));// 							<-- remove on release
-	//DEBUG_WM(system_get_free_heap_size());// 							<-- remove on release
+	bool httpSwitch = false;
 	
-	if(system_get_free_heap_size() > 31300){
-		url += F("https://"); // 										<<--  https We need to free up RAM first!
+	if(HTTPS == true && system_get_free_heap_size() > HEAPFORHTTPS){
+		httpSwitch = true;
+	}
+	
+	
+	//DEBUG_WM(F("Start hdlIasCfgPages()"));							//<-- remove on release
+	//DEBUG_WM(system_get_free_heap_size()); 							//<-- remove on release
+	
+	if(httpSwitch == true){
+		url += F("https://");  											//<<--  https We need to free up RAM first!
 	}else{
 		url += F("http://");
 	}
@@ -519,31 +526,31 @@ void WiFiManager::hdlIasCfgPages(const String args){
 	url += args;
 	
 	// start HTTPClient
-	//DEBUG_WM(F("Start HTTPClient"));// 									<-- remove on release
+	//DEBUG_WM(F("Start HTTPClient")); 									//<-- remove on release
     HTTPClient http;
 
 	// connect to server
-	DEBUG_WM(F("Connecting to: "));// 									<-- remove on release ?
-	DEBUG_WM(url);// 													<-- remove on release ?
-	//DEBUG_WM(system_get_free_heap_size());// 							<-- remove on release
+	//DEBUG_WM(F("Connecting to: ")); 									//<-- remove on release ?
+	//DEBUG_WM(url); 													//<-- remove on release ?
+	//DEBUG_WM(system_get_free_heap_size()); 							//<-- remove on release
 	delay(100);
 	
-	if(system_get_free_heap_size() > 31300){
-		http.begin(url, config->sha1); // 								<<--  https We need to free up RAM first!
+	if(httpSwitch == true){
+		http.begin(url, config->sha1);  								//<<--  https We need to free up RAM first!
 	}else{
 		http.begin(url);
 	}
-	
-	//DEBUG_WM(F("after http.begin"));// 									<-- remove on release
-	DEBUG_WM(system_get_free_heap_size());	// 							<-- remove on release
+	delay(100);
+	//DEBUG_WM(F("after http.begin")); 									//<-- remove on release
+	//DEBUG_WM(system_get_free_heap_size());	 						//<-- remove on release
 	
 	// add headers
     http.setUserAgent(F("ESP8266-http-Update"));
 	http.addHeader(F("x-ESP8266-chip-id"), String(ESP.getChipId()));
 	http.addHeader(F("x-ESP8266-flashchip-size"), String(ESP.getFlashChipRealSize()));
-    http.addHeader(F("x-ESP8266-flashchip-id"), String(ESP.getFlashChipRealSize()));
+    http.addHeader(F("x-ESP8266-flashchip-id"), String(ESP.getFlashChipId()));
     http.addHeader(F("x-ESP8266-STA-MAC"), WiFi.macAddress());
-    http.addHeader(F("x-ESP8266-act-id"), String(config->devPass));
+    http.addHeader(F("x-ESP8266-act-id"), String(config->actCode));
 	
     const char * headerkeys[] = { "x-MD5" };
     size_t headerkeyssize = sizeof(headerkeys) / sizeof(char*);
@@ -556,8 +563,9 @@ void WiFiManager::hdlIasCfgPages(const String args){
 	
 	// httpCode will be negative on error
 	if(httpCode < 1) {
-		DEBUG_WM(F("[HTTP] GET... failed, error: "));
-		DEBUG_WM(http.errorToString(httpCode).c_str());
+		DEBUG_WM(F("[HTTP] GET... failed, try again"));
+		//DEBUG_WM(F("[HTTP] GET... failed, error: "));
+		//DEBUG_WM(http.errorToString(httpCode).c_str());
 		return;
 	}
 	
@@ -577,7 +585,7 @@ void WiFiManager::hdlIasCfgPages(const String args){
 	
 	// save received activation code
 	if(server->arg("c") && line == "(Y)"){
-		server->arg("c").toCharArray(config->devPass,7);
+		server->arg("c").toCharArray(config->actCode,7);
 		hdlIasCfgPages(F("IOTAppStory.com config"));
 	}else{
 		hdlReturn(line);
