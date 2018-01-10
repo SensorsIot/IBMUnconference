@@ -171,20 +171,20 @@ void setup() {
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.drawString(48, 35, F("Wait"));
   display.display();
-  
+
   String boardName = APPNAME"_" + WiFi.macAddress();
   IAS.preSetBoardname(boardName);
   IAS.preSetAutoUpdate(false);
   IAS.preSetAutoConfig(false);
   IAS.preSetWifi(mySSID, myPASSWORD);
 
- /*
-    IAS.onFirstBoot([]() {
-      Serial.println(F(" Hardware reset necessary after Serial upload. Reset to continu!"));
-      Serial.println(F("*-------------------------------------------------------------------------*"));
-      displayStartup();
-      while (1) yield();
-    });
+  /*
+     IAS.onFirstBoot([]() {
+       Serial.println(F(" Hardware reset necessary after Serial upload. Reset to continu!"));
+       Serial.println(F("*-------------------------------------------------------------------------*"));
+       displayStartup();
+       while (1) yield();
+     });
   */
 
   IAS.onConfigMode([]() {
@@ -193,6 +193,23 @@ void setup() {
 
   IAS.onFirmwareUpdate([]() {
     displayUpdate();
+  });
+
+
+  IAS.onModeButtonShortPress([]() {
+    Serial.println(F(" If mode button is released, I will enter in firmware update mode."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onModeButtonLongPress([]() {
+    Serial.println(F(" If mode button is released, I will enter in configuration mode."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onModeButtonVeryLongPress([]() {
+    Serial.println(F(" If mode button is released, I won't do anything unless you program me to."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+    /* TIP! You can use this callback to put your app on it's own configuration mode */
   });
 
   IAS.begin(true, 'P');
