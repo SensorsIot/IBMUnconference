@@ -128,6 +128,22 @@ void setup() {
     displayUpdate();
   });
 
+    IAS.onModeButtonShortPress([]() {
+    Serial.println(F(" If mode button is released, I will enter in firmware update mode."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onModeButtonLongPress([]() {
+    Serial.println(F(" If mode button is released, I will enter in configuration mode."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+  });
+
+  IAS.onModeButtonVeryLongPress([]() {
+    Serial.println(F(" If mode button is released, I won't do anything unless you program me to."));
+    Serial.println(F("*-------------------------------------------------------------------------*"));
+    /* TIP! You can use this callback to put your app on it's own configuration mode */
+  });
+
   IAS.begin(true, 'P');
 
   //-------- Your Setup starts from here ---------------
