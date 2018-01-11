@@ -45,9 +45,9 @@
     #define STRUCT_FILE_SIZE				31
 	
     // constants used to define the status of the mode button based on the time it was pressed. (miliseconds)
-    #define MODE_BUTTON_SHORT_PRESS       500
-    #define MODE_BUTTON_LONG_PRESS        4000
-    #define MODE_BUTTON_VERY_LONG_PRESS   10000
+    #define MODE_BUTTON_SHORT_PRESS       4000
+    #define MODE_BUTTON_LONG_PRESS        8000
+    #define MODE_BUTTON_VERY_LONG_PRESS   20000
 
     // sets the default value for the maximum number of retries when trying to connect to the wifi
     #ifndef MAX_WIFI_RETRIES
