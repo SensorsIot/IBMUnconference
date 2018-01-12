@@ -144,10 +144,6 @@ void setup() {
 
   //-------- Your Setup starts from here ---------------
 
-  display.init();
-  display.flipScreenVertically();
-  display.setFont(ArialMT_Plain_10);
-
   while (!NTPch.setSNTPtime()) Serial.print("."); // set internal clock
   Serial.println();
   Serial.println("Time set");
