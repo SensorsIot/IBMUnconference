@@ -67,9 +67,9 @@ void displayUpdate() {
   display.clear();
   display.setFont(ArialMT_Plain_16);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
-  display.drawString(32, 13, F("Update"));
-  display.drawString(52, 31, F("of"));
-  display.drawString(32, 49, F("Sketch"));
+  display.drawString(32, 15, F("Update"));
+  display.drawString(52, 30, F("of"));
+  display.drawString(44, 45, F("App"));
   display.display();
 }
 
