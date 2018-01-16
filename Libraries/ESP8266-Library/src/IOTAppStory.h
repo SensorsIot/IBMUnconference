@@ -45,7 +45,7 @@
     #define STRUCT_FILE_SIZE				31
 	
     // constants used to define the status of the mode button based on the time it was pressed. (miliseconds)
-    #define MODE_BUTTON_SHORT_PRESS       4000
+    #define MODE_BUTTON_SHORT_PRESS       3000
     #define MODE_BUTTON_LONG_PRESS        8000
     #define MODE_BUTTON_VERY_LONG_PRESS   20000
 
