@@ -19,6 +19,11 @@
 //#include <PubSubClient.h>
 #include <credentials.h>
 
+#ifndef CREDENTIALS
+#define mySSID "*****"
+#define myPASSWORD "*****"
+#endif
+
 #define DHTPIN D4
 // Uncomment whatever type you're using!
 #define DHTTYPE DHT11   // DHT 11
@@ -36,6 +41,16 @@ SSD1306  display(0x3c, D2, D1);
 
 int tempEntry;
 unsigned long iotEntry = millis();
+
+void displayError() {
+  display.clear();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, F("Error"));
+  display.drawString(32, 30, F("Reding"));
+  display.drawString(32, 45, F("Sensor"));
+  display.display();
+}
 
 void displayStartup() {
   display.clear();
@@ -93,7 +108,6 @@ void printLog() {
   Serial.print(F(" *C "));
   Serial.print(hif);
   Serial.println(F(" *F"));
-  tempEntry = millis();
 }
 
 void setup() {
@@ -111,7 +125,6 @@ void setup() {
   IAS.preSetAutoUpdate(false);                     // automaticUpdate (true, false)
   IAS.preSetAutoConfig(true);                      // automaticConfig (true, false)
   IAS.preSetWifi(mySSID, myPASSWORD);            // preset Wifi
-
   /*
     IAS.onFirstBoot([]() {
       Serial.println(F(" Hardware reset necessary after Serial upload. Reset to continu!"));
@@ -128,7 +141,7 @@ void setup() {
     displayUpdate();
   });
 
-    IAS.onModeButtonShortPress([]() {
+  IAS.onModeButtonShortPress([]() {
     Serial.println(F(" If mode button is released, I will enter in firmware update mode."));
     Serial.println(F("*-------------------------------------------------------------------------*"));
   });
@@ -165,33 +178,45 @@ void loop() {
   }
 
   if (millis() > tempEntry + 5000) { // Wait a few seconds between measurements.
-
+    tempEntry = millis();
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+
+    // Read temperature as Celsius (the default)
+    unsigned long readEntry = millis();
     do {
       h = dht.readHumidity();
       yield();
-    } while (isnan(h));
-    // Read temperature as Celsius (the default)
+    } while (isnan(h) && millis() - readEntry < 500);
+
+    readEntry = millis();
     do {
       t = dht.readTemperature();
       yield();
-    } while (isnan(t));
+    } while (isnan(t) && millis() - readEntry < 500);
+
     // Read temperature as Fahrenheit (isFahrenheit = true)
+    readEntry = millis();
     do {
       f = dht.readTemperature(true);
       yield();
-    } while (isnan(f));
+    } while (isnan(f) && millis() - readEntry < 500);
 
     // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f)) Serial.println("Failed to read from DHT sensor!");
+    if (isnan(h) || isnan(t) || isnan(f)) {
+      Serial.println("Failed to read from DHT sensor!");
+      displayError();
+    }
+    else {
 
-    // Compute heat index in Fahrenheit (the default)
-    hif = dht.computeHeatIndex(f, h);
-    // Compute heat index in Celsius (isFahreheit = false)
-    hic = dht.computeHeatIndex(t, h, false);
+      // Compute heat index in Fahrenheit (the default)
+      hif = dht.computeHeatIndex(f, h);
+      // Compute heat index in Celsius (isFahreheit = false)
+      hic = dht.computeHeatIndex(t, h, false);
 
-    displayTemp(t);
-    printLog();
+      displayTemp(t);
+      printLog();
+    }
+//    Serial.println(millis() - readEntry);
   }
 }

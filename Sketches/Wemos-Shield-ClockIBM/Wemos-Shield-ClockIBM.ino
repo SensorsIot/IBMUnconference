@@ -24,7 +24,7 @@
 
 */
 
-#define APPNAME "WemosClockIBM"
+#define APPNAME "WemosClock"
 #define VERSION "V2.1.0"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
@@ -99,11 +99,10 @@ void setup() {
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.drawString(48, 35, F("Wait"));
   display.display();
-
   String boardName = APPNAME"_" + WiFi.macAddress();
   IAS.preSetBoardname(boardName);
   IAS.preSetAutoUpdate(false);
-  IAS.preSetAutoConfig(false);
+  IAS.preSetAutoConfig(true);
   IAS.preSetWifi(mySSID, myPASSWORD);
 
   /*

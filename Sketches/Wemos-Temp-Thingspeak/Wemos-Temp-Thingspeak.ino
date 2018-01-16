@@ -51,6 +51,16 @@ SSD1306  display(0x3c, D2, D1);
 int tempEntry;
 unsigned long iotEntry = millis();
 
+void displayError() {
+  display.clear();
+  display.setFont(ArialMT_Plain_10);
+  display.setTextAlignment(TEXT_ALIGN_LEFT);
+  display.drawString(32, 15, F("Error"));
+  display.drawString(32, 30, F("Reding"));
+  display.drawString(32, 45, F("Sensor"));
+  display.display();
+}
+
 void displayTemp(float temp) {
   display.clear();
   display.setFont(ArialMT_Plain_24);
@@ -159,7 +169,6 @@ void printLog() {
   Serial.print(" *C ");
   Serial.print(hif);
   Serial.println(" *F");
-  tempEntry = millis();
 }
 
 void setup() {
@@ -237,36 +246,43 @@ void loop() {
   }
 
   if (millis() > tempEntry + 5000) { // Wait a few seconds between measurements.
-
+    tempEntry = millis();
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
+    unsigned long readEntry = millis();
     do {
       h = dht.readHumidity();
       yield();
-    } while (isnan(h));
+    } while (isnan(h) && millis() - readEntry < 500);
     // Read temperature as Celsius (the default)
+    readEntry = millis();
     do {
       t = dht.readTemperature();
       yield();
-    } while (isnan(t));
+    } while (isnan(t) && millis() - readEntry < 500);
     // Read temperature as Fahrenheit (isFahrenheit = true)
+    readEntry = millis();
     do {
       f = dht.readTemperature(true);
       yield();
-    } while (isnan(f));
+    } while (isnan(f) && millis() - readEntry < 500);
 
     // Check if any reads failed and exit early (to try again).
-    if (isnan(h) || isnan(t) || isnan(f)) Serial.println("Failed to read from DHT sensor!");
+    if (isnan(h) || isnan(t) || isnan(f)) {
+      Serial.println("Failed to read from DHT sensor!");
+      displayError();
+    }
+    else {
+      // Compute heat index in Fahrenheit (the default)
+      hif = dht.computeHeatIndex(f, h);
+      // Compute heat index in Celsius (isFahreheit = false)
+      hic = dht.computeHeatIndex(t, h, false);
 
-    // Compute heat index in Fahrenheit (the default)
-    hif = dht.computeHeatIndex(f, h);
-    // Compute heat index in Celsius (isFahreheit = false)
-    hic = dht.computeHeatIndex(t, h, false);
+      displayTemp(t);
 
-    displayTemp(t);
-
-    // Publish to Thingspeak
-    publishToThingspeak();
-    printLog();
+      // Publish to Thingspeak
+      publishToThingspeak();
+      printLog();
+    }
   }
 }
