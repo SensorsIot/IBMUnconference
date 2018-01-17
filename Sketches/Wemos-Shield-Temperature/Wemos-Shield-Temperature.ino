@@ -47,7 +47,7 @@ void displayError() {
   display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.drawString(32, 15, F("Error"));
-  display.drawString(32, 30, F("Reding"));
+  display.drawString(32, 30, F("Reading"));
   display.drawString(32, 45, F("Sensor"));
   display.display();
 }
@@ -108,6 +108,9 @@ void printLog() {
   Serial.print(F(" *C "));
   Serial.print(hif);
   Serial.println(F(" *F"));
+  //Serial.println(isnan(h));
+  //Serial.println(isnan(t));
+  //Serial.println(isnan(f));
 }
 
 void setup() {
@@ -161,11 +164,12 @@ void setup() {
 
   //-------- Your Setup starts from here ---------------
 
-  dht.begin();
+
   // Before you can start using the OLED, call begin() to init
   // all of the pins and configure the OLED.
-
+  dht.begin();
   Serial.println("Setup done");
+
 }
 
 void loop() {
@@ -183,24 +187,28 @@ void loop() {
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
 
     // Read temperature as Celsius (the default)
-    unsigned long readEntry = millis();
+    unsigned long measurementEntry = millis();
     do {
-      h = dht.readHumidity();
-      yield();
-    } while (isnan(h) && millis() - readEntry < 500);
+      unsigned long readEntry = millis();
+      do {
+        h = dht.readHumidity();
+        yield();
+      } while (isnan(h) && millis() - readEntry < 300);
 
-    readEntry = millis();
-    do {
-      t = dht.readTemperature();
-      yield();
-    } while (isnan(t) && millis() - readEntry < 500);
+      readEntry = millis();
+      do {
+        t = dht.readTemperature();
+        yield();
+      } while (isnan(t) && millis() - readEntry < 300);
 
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    readEntry = millis();
-    do {
-      f = dht.readTemperature(true);
-      yield();
-    } while (isnan(f) && millis() - readEntry < 500);
+      // Read temperature as Fahrenheit (isFahrenheit = true)
+      readEntry = millis();
+      do {
+        f = dht.readTemperature(true);
+        yield();
+      } while (isnan(f) && millis() - readEntry < 300);
+
+    } while ((isnan(h) || isnan(t) || isnan(f)) && millis() - measurementEntry < 2000);
 
     // Check if any reads failed and exit early (to try again).
     if (isnan(h) || isnan(t) || isnan(f)) {
@@ -217,6 +225,6 @@ void loop() {
       displayTemp(t);
       printLog();
     }
-//    Serial.println(millis() - readEntry);
+    //    Serial.println(millis() - readEntry);
   }
 }
