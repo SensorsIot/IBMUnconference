@@ -8,7 +8,7 @@
 */
 
 #define APPNAME "TempSensor"
-#define VERSION "V1.2.0"
+#define VERSION "V1.3.0"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
 

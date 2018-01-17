@@ -8,7 +8,7 @@
 */
 
 #define APPNAME "WemosTempSensorThinspeak"
-#define VERSION "V1.2.0"
+#define VERSION "V1.3.0"
 #define COMPDATE __DATE__ __TIME__
 #define MODEBUTTON D3
 
@@ -56,7 +56,7 @@ void displayError() {
   display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_LEFT);
   display.drawString(32, 15, F("Error"));
-  display.drawString(32, 30, F("Reding"));
+  display.drawString(32, 30, F("Reading"));
   display.drawString(32, 45, F("Sensor"));
   display.display();
 }
@@ -247,25 +247,29 @@ void loop() {
 
   if (millis() > tempEntry + 5000) { // Wait a few seconds between measurements.
     tempEntry = millis();
+
     // Reading temperature or humidity takes about 250 milliseconds!
     // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-    unsigned long readEntry = millis();
+    unsigned long measurementEntry = millis();
     do {
-      h = dht.readHumidity();
-      yield();
-    } while (isnan(h) && millis() - readEntry < 500);
-    // Read temperature as Celsius (the default)
-    readEntry = millis();
-    do {
-      t = dht.readTemperature();
-      yield();
-    } while (isnan(t) && millis() - readEntry < 500);
-    // Read temperature as Fahrenheit (isFahrenheit = true)
-    readEntry = millis();
-    do {
-      f = dht.readTemperature(true);
-      yield();
-    } while (isnan(f) && millis() - readEntry < 500);
+      unsigned long readEntry = millis();
+      do {
+        h = dht.readHumidity();
+        yield();
+      } while (isnan(h) && millis() - readEntry < 300);
+      // Read temperature as Celsius (the default)
+      readEntry = millis();
+      do {
+        t = dht.readTemperature();
+        yield();
+      } while (isnan(t) && millis() - readEntry < 300);
+      // Read temperature as Fahrenheit (isFahrenheit = true)
+      readEntry = millis();
+      do {
+        f = dht.readTemperature(true);
+        yield();
+      } while (isnan(f) && millis() - readEntry < 300);
+    } while ((isnan(h) || isnan(t) || isnan(f)) && millis() - measurementEntry < 2000);
 
     // Check if any reads failed and exit early (to try again).
     if (isnan(h) || isnan(t) || isnan(f)) {
